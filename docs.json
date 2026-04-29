@@ -7,31 +7,33 @@
     "light": "#d97706",
     "dark": "#0f172a"
   },
-  "navigation": [
-    {
-      "group": "Overview",
-      "pages": [
-        "index",
-        "quickstart",
-        "concepts/control-plane-model"
-      ]
-    },
-    {
-      "group": "Guides",
-      "pages": [
-        "guides/deployment",
-        "guides/bedrock-demo",
-        "guides/runtime-integration",
-        "guides/operate-the-ui"
-      ]
-    },
-    {
-      "group": "Reference",
-      "pages": [
-        "reference/domain-model",
-        "reference/policy-and-quota",
-        "reference/api-reference"
-      ]
-    }
-  ]
+  "navigation": {
+    "groups": [
+      {
+        "group": "Overview",
+        "pages": [
+          "index",
+          "quickstart",
+          "concepts/control-plane-model"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/deployment",
+          "guides/bedrock-demo",
+          "guides/runtime-integration",
+          "guides/operate-the-ui"
+        ]
+      },
+      {
+        "group": "Reference",
+        "pages": [
+          "reference/domain-model",
+          "reference/policy-and-quota",
+          "reference/api-reference"
+        ]
+      }
+    ]
+  }
 }
