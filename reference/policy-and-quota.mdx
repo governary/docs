@@ -1,0 +1,76 @@
+---
+title: Policy And Quota
+description: Fixed-priority policy evaluation and quota behavior in the Governix MVP.
+---
+
+# Policy And Quota
+
+Governix uses a fixed-priority policy model in the MVP.
+
+## Evaluation priority
+
+1. Tenant-specific policy
+2. Quota-based runtime action
+3. System default
+
+The MVP intentionally avoids a custom DSL. The project uses a fixed rule shape with explicit actions and deterministic precedence.
+
+## Input dimensions
+
+- `tenant_id`
+- `kb_id`
+- `model_id`
+- `request_type`
+- `request_rate_snapshot`
+- `require_citation`
+
+## Final actions
+
+- `allow`
+- `deny`
+- `force_filter`
+- `downgrade_model`
+- `quota_block`
+
+## Evaluation result shape
+
+```ts
+{
+  matchedPolicyIds: string[]
+  finalAction: "allow" | "deny" | "force_filter" | "downgrade_model" | "quota_block"
+  finalModelId?: string
+  finalKbId?: string
+  retrievalFilter?: Record<string, unknown>
+  reasons: string[]
+}
+```
+
+## Quota behavior
+
+Governix supports:
+
+- monthly request limits
+- monthly token limits
+- monthly cost limits
+- soft threshold percent
+- hard threshold percent
+
+Quota states:
+
+- `normal`: usage is below the soft threshold
+- `warning`: usage is at or above the soft threshold
+- `hard_limit`: usage is at or above the hard threshold
+
+At hard limit, Governix returns `quota_block` or `downgrade_model`. The integrating application is responsible for actually blocking or downgrading the request.
+
+## Data sources for usage
+
+Quota and showback logic derive from:
+
+- runtime event detail
+- request ledger detail
+- `usage_daily` aggregates
+
+## Important boundary
+
+Quota enforcement in the MVP is advisory at the control plane layer. Governix decides, but the integrating application executes.

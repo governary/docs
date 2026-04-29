@@ -1,0 +1,87 @@
+---
+title: Domain Model
+description: Core objects, roles, statuses, and environment variables in the Governix MVP.
+---
+
+# Domain Model
+
+These are the core data objects in the Governix MVP.
+
+## Core objects
+
+| Object | Purpose |
+| --- | --- |
+| `tenant` | Governance, quota, showback, and audit boundary |
+| `application` | Ingestion unit under a tenant; API key and usage attribution |
+| `tenant_policy` | KB and model access rules for a tenant |
+| `tenant_quota` | Monthly limits and threshold behavior |
+| `request_ledger` | Per-request event chain |
+| `usage_daily` | Daily aggregated usage per tenant or application |
+| `policy_evaluation_logs` | Policy match result per request |
+| `audit_exports` | Export job tracking |
+| `users` | Console admin users only |
+
+## Roles
+
+| Role | Permissions |
+| --- | --- |
+| `admin` | Full read and write |
+| `operator` | CRUD on tenants, apps, policies, quotas, and ledger |
+| `viewer` | Read-only |
+
+## Status values
+
+### Tenant status
+
+- `active`
+- `paused`
+- `archived`
+
+### Application environment
+
+- `dev`
+- `staging`
+- `prod`
+
+### Application status
+
+- `active`
+- `disabled`
+- `archived`
+
+### Ledger status
+
+- `success`
+- `blocked`
+- `failed`
+- `partial`
+
+### Export status
+
+- `pending`
+- `processing`
+- `ready`
+- `failed`
+
+## Security rules
+
+- All management API routes require an authenticated console session
+- Runtime routes require an application API key
+- Application API keys are stored as hashes only
+- Plaintext keys are returned once on create or rotate
+- Runtime API keys are only for Governix runtime routes, not for direct AWS access
+- Governix stores summaries and metadata, not full prompt or response bodies
+
+## Required environment variables
+
+```env
+DATABASE_URL=
+NEXTAUTH_SECRET=
+APP_BASE_URL=
+OBJECT_STORAGE_BUCKET=
+OBJECT_STORAGE_REGION=
+OBJECT_STORAGE_ACCESS_KEY=
+OBJECT_STORAGE_SECRET_KEY=
+OBJECT_STORAGE_ENDPOINT=
+EXPORT_FILE_TTL_HOURS=
+```

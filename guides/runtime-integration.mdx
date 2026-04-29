@@ -1,0 +1,106 @@
+---
+title: Runtime Integration
+description: Integrate Governix into a Bedrock application with pre-request policy checks and post-request events.
+---
+
+# Runtime Integration
+
+Governix runtime routes are authenticated by application API key, not by console session cookies.
+
+Required header:
+
+```http
+x-governix-api-key: govx_...
+```
+
+## Integration sequence
+
+1. Identify `tenantId` and `applicationId` in your app.
+2. Call `POST /api/runtime/policy/evaluate`.
+3. Enforce the returned action.
+4. Call Bedrock directly.
+5. Send `POST /api/runtime/events` with summaries and usage metadata.
+
+## Minimum application configuration
+
+```env
+AWS_REGION=us-east-1
+GOVERNIX_BASE_URL=https://your-governix.example.com
+GOVERNIX_RUNTIME_API_KEY=govx_...
+GOVERNIX_TENANT_ID=...
+GOVERNIX_APPLICATION_ID=...
+BEDROCK_KB_ID=...
+BEDROCK_PRIMARY_MODEL_REF=...
+BEDROCK_FALLBACK_MODEL_REF=...
+```
+
+## What your app must enforce
+
+- `allow`: continue
+- `deny`: stop
+- `force_filter`: apply the retrieval filter
+- `downgrade_model`: change the model before the Bedrock call
+- `quota_block`: stop
+
+Governix does not enforce these actions inline for you.
+
+## Minimal policy request
+
+```ts
+const policy = await client.evaluatePolicy({
+  tenant: { tenantId },
+  application: { applicationId },
+  request: {
+    requestType: "retrieve_and_generate",
+    modelId: requestedModelId,
+    kbId: requestedKbId,
+    requireCitation: true,
+    requestRateSnapshot: 12
+  }
+});
+```
+
+## Minimal runtime event
+
+```ts
+await client.emitRuntimeEvent({
+  requestId,
+  tenant: { tenantId, userId, sessionId },
+  application: { applicationId },
+  request: {
+    requestType: "retrieve_and_generate",
+    rawQuerySummary: "Customer asked about API key rotation.",
+    modelId: requestedModelId,
+    kbId: requestedKbId
+  },
+  policy,
+  retrieval: {
+    chunkRefs: citations
+  },
+  generation: {
+    summary: "Rotating the application API key requires a console action.",
+    citationsPresent: citations.length > 0,
+    status: "success",
+    latencyMs,
+    inputTokens,
+    outputTokens,
+    embeddingCount: 0,
+    estimatedCost
+  },
+  error: null,
+  timestamp: new Date().toISOString()
+});
+```
+
+## Data minimization rules
+
+Stay aligned with the project boundary:
+
+- send summaries, not full prompts
+- send summaries, not full generated responses
+- include token, latency, citation, and cost metadata when available
+
+## Example code
+
+- `examples/runtime-sdk-ts/minimal.ts`
+- `examples/runtime-sdk-ts/retrieve-and-generate.ts`

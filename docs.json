@@ -1,64 +1,37 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "theme": "luma",
+  "$schema": "https://mintlify.com/schema.json",
   "name": "Governix",
-  "favicon": "https://media.brand.dev/92adcf0b-8ee9-425c-81e1-fa2f45b2bb5b.png",
+  "theme": "mint",
   "colors": {
-    "primary": "#0c142c"
+    "primary": "#0f766e",
+    "light": "#d97706",
+    "dark": "#0f172a"
   },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/governary/governix"
+  "navigation": [
+    {
+      "group": "Overview",
+      "pages": [
+        "index",
+        "quickstart",
+        "concepts/control-plane-model"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/deployment",
+        "guides/bedrock-demo",
+        "guides/runtime-integration",
+        "guides/operate-the-ui"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/domain-model",
+        "reference/policy-and-quota",
+        "reference/api-reference"
+      ]
     }
-  },
-  "navigation": {
-    "tabs": [
-      {
-        "tab": "Documentation",
-        "groups": [
-          {
-            "group": "Get Started",
-            "pages": [
-              "introduction",
-              "quickstart",
-              "how-it-works"
-            ]
-          },
-          {
-            "group": "Core Concepts",
-            "pages": [
-              "concepts/tenants",
-              "concepts/applications",
-              "concepts/policy",
-              "concepts/usage-quota",
-              "concepts/audit-ledger"
-            ]
-          },
-          {
-            "group": "Integration",
-            "pages": [
-              "integration/sdk",
-              "integration/middleware",
-              "integration/modes"
-            ]
-          },
-          {
-            "group": "Configuration",
-            "pages": [
-              "configuration/policy-rules",
-              "configuration/quota-thresholds",
-              "configuration/api-keys"
-            ]
-          },
-          {
-            "group": "FAQ",
-            "pages": [
-              "faq"
-            ]
-          }
-        ]
-      }
-    ]
-  }
+  ]
 }

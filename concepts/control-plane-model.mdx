@@ -1,0 +1,79 @@
+---
+title: Control Plane Model
+description: Understand how Governix fits into a Bedrock application architecture.
+---
+
+# Control Plane Model
+
+Governix is a control plane, not a Bedrock proxy.
+
+Your application still owns the customer-facing AI workflow, still calls Bedrock directly, and still decides how to execute the final request. Governix supplies policy, quota, metering, and audit decisions around that workflow.
+
+## Runtime sequence
+
+1. Your application identifies `tenantId` and `applicationId`.
+2. Your application calls `POST /api/runtime/policy/evaluate`.
+3. Governix returns a final action.
+4. Your application enforces that action.
+5. Your application calls Bedrock directly.
+6. Your application emits a runtime event with summaries and metadata.
+
+## Request decisions
+
+Governix can return:
+
+- `allow`
+- `deny`
+- `force_filter`
+- `downgrade_model`
+- `quota_block`
+
+Important boundary:
+
+- Governix judges the request.
+- Your application executes the result.
+- Governix does not proxy or block Bedrock traffic inline.
+
+## Object mapping
+
+Map your own product objects to Governix like this:
+
+- One customer, department, workspace, or business unit maps to one `tenant`
+- One deployed AI or RAG service under that tenant maps to one `application`
+
+Example:
+
+- `tenant`: `Acme Support`
+- `application`: `support-rag-prod`
+
+## Core objects
+
+- `tenant`: governance, quota, showback, and audit boundary
+- `application`: runtime API key and usage attribution boundary
+- `tenant_policy`: tenant-level KB and model access rules
+- `tenant_quota`: request, token, and cost limits
+- `request_ledger`: request-level event chain
+- `usage_daily`: idempotent daily aggregates
+- `policy_evaluation_logs`: per-request policy decision log
+- `audit_exports`: async export job tracking
+
+## Scope boundaries
+
+These boundaries are fixed in MVP:
+
+- Policy is tenant-scoped only
+- Governix does not forward Bedrock traffic
+- Prompt and response bodies are not stored in full
+- Quota enforcement is advisory at the control plane level
+- Usage aggregation must be idempotent
+
+## Supported Bedrock integration styles
+
+The project is designed around application-layer integration with:
+
+- Bedrock Knowledge Bases `Retrieve`
+- Bedrock Knowledge Bases `RetrieveAndGenerate`
+- Bedrock Runtime `Converse`
+- Bedrock Runtime `InvokeModel`
+
+The simplest example path in this repo uses Bedrock Knowledge Bases with `RetrieveAndGenerate`.

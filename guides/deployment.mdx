@@ -1,0 +1,85 @@
+---
+title: Deployment
+description: Deploy Governix to Vercel with PostgreSQL and the required environment variables.
+---
+
+# Deployment
+
+Governix is packaged as a single Next.js deployment unit for the MVP.
+
+## What you need
+
+- A Git repository for this project
+- A Vercel account
+- A managed PostgreSQL database
+- A strong `NEXTAUTH_SECRET`
+
+Recommended database options:
+
+- Neon
+- Supabase Postgres
+- AWS RDS or Aurora PostgreSQL
+
+## Required environment variables
+
+```env
+DATABASE_URL=
+NEXTAUTH_SECRET=
+APP_BASE_URL=
+OBJECT_STORAGE_BUCKET=
+OBJECT_STORAGE_REGION=
+OBJECT_STORAGE_ACCESS_KEY=
+OBJECT_STORAGE_SECRET_KEY=
+OBJECT_STORAGE_ENDPOINT=
+EXPORT_FILE_TTL_HOURS=24
+```
+
+Notes:
+
+- `DATABASE_URL` must point to PostgreSQL
+- `NEXTAUTH_SECRET` should be at least 32 characters
+- `APP_BASE_URL` should be the public web URL for the console
+
+## Deploy to Vercel
+
+1. Push the repo to GitHub.
+2. Import the repo into Vercel.
+3. Configure the project as a normal Node-based Next.js app.
+4. Use `npm install` as the install command.
+5. Use `npm run build` as the build command.
+6. Add the required environment variables.
+7. Deploy.
+
+## Run migrations
+
+Governix does not auto-run migrations during deployment.
+
+```bash
+npm install
+DATABASE_URL='your-production-postgres-url' npm run db:migrate
+```
+
+## Bootstrap the first admin
+
+For a demo environment on an empty database:
+
+```bash
+DATABASE_URL='your-production-postgres-url' npm run db:seed
+```
+
+This creates:
+
+- email: `admin@acme.io`
+- password: `governix-admin`
+
+Do not treat the seed script as a production-safe bootstrap flow. It is destructive and intended for demos and local reset workflows.
+
+## Current export caveat
+
+The current codebase uses a local `/tmp` storage adapter for exports.
+
+That means:
+
+- export files are not durable object storage yet
+- Vercel storage is ephemeral
+- export downloads are not production-grade until the storage adapter is replaced with a real S3-compatible implementation

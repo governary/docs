@@ -1,41 +1,68 @@
 ---
-title: "Governix docs: governance layer for AWS Bedrock AI"
-description: "Governix is the open-source governance layer for multi-tenant AWS Bedrock. Enforce runtime policy, track usage per tenant, and keep an audit-ready ledger."
+title: Governix
+description: Tenant-aware control, metering, and audit for Bedrock-powered AI.
 ---
 
-Governix adds the governance layer your Bedrock-based AI application needs in production. Once you're serving multiple tenants, you need to control who can use which knowledge bases and models, track usage and cost per tenant, and maintain an audit-ready record of every request — without rearchitecting your existing Bedrock integration.
+# Governix
 
-<CardGroup cols={2}>
-  <Card title="Quick Start" icon="rocket" href="/quickstart">
-    Connect Governix to your Bedrock app in five steps. No proxy gateway required.
-  </Card>
-  <Card title="How It Works" icon="diagram-project" href="/how-it-works">
-    Understand how Governix sits alongside your Bedrock integration as a control plane.
-  </Card>
-  <Card title="Core Concepts" icon="book-open" href="/concepts/tenants">
-    Learn about tenants, applications, policy, quota, and the audit ledger.
-  </Card>
-  <Card title="SDK Integration" icon="code" href="/integration/sdk">
-    Integrate policy evaluation and event ingestion using the Governix SDK.
-  </Card>
-</CardGroup>
+Governix is the open-source, tenant-aware control, metering, and audit layer for Bedrock-powered AI.
 
-## What Governix does
+Governix is a control plane for SaaS teams building multi-tenant AI and RAG products on AWS Bedrock. It does not replace Bedrock, vector databases, or your application. Instead, it adds governance and observability around them.
 
-Governix solves three production governance problems that AWS Bedrock alone doesn't address:
+## What Governix adds
 
-<Steps>
-  <Step title="Enforce runtime policy">
-    Before each Bedrock call, Governix evaluates tenant-specific policy — allowing, denying, filtering, or quota-blocking the request based on rules you define.
-  </Step>
-  <Step title="Track per-tenant usage">
-    After each request, Governix records token usage, request count, estimated cost, and quota consumption — broken down by tenant, application, and model.
-  </Step>
-  <Step title="Maintain an audit ledger">
-    Every retrieval and generation event is recorded with request-level detail so you can investigate failures, explain decisions, and export evidence for compliance.
-  </Step>
-</Steps>
+- Tenant-aware request policy before a Bedrock call
+- Per-tenant usage, quota, and showback visibility
+- Audit-grade retrieval and generation ledger records
 
-<Note>
-  Governix works as a control plane alongside your existing Bedrock integration — not as an inline proxy gateway. You keep your current setup and add governance incrementally.
-</Note>
+## Core model
+
+Governix is a sidecar control plane, not an inline proxy.
+
+1. Your application calls Governix before a Bedrock request.
+2. Governix returns a policy and quota decision.
+3. Your application enforces that decision and calls Bedrock directly.
+4. Your application sends runtime event metadata back to Governix.
+
+## MVP scope
+
+Included in MVP:
+
+- Tenant CRUD
+- Application CRUD and API key rotation
+- Tenant-scoped policy CRUD and policy testing
+- Tenant quota configuration
+- Runtime policy evaluation API
+- Runtime event ingestion API
+- Usage aggregation and showback export
+- Request ledger UI and async CSV export
+- Basic dashboard and alert visibility
+
+Out of scope in MVP:
+
+- Inline Bedrock proxy or gateway
+- Multi-cloud support
+- Full billing and payments
+- Application-scoped policy
+- Prompt playgrounds and eval platforms
+- Enterprise SSO, SCIM, and org hierarchy
+
+## Tech stack
+
+- Frontend: Next.js App Router and TypeScript
+- UI: shadcn/ui and Tailwind CSS
+- Backend API: Next.js Route Handlers
+- Database: PostgreSQL
+- ORM: Drizzle ORM
+- Auth: Email and password with secure cookies
+- Runtime SDK: TypeScript
+- Testing: TDD and Playwright Test
+- Local development: Docker Compose
+
+## Read next
+
+- [Quickstart](quickstart)
+- [Control Plane Model](concepts/control-plane-model)
+- [Bedrock Demo](guides/bedrock-demo)
+- [Runtime Integration](guides/runtime-integration)
+- [API Reference](reference/api-reference)

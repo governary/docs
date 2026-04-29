@@ -1,0 +1,106 @@
+---
+title: Operate The UI
+description: Use the Governix console to manage tenants, policies, quotas, usage, and ledger records.
+---
+
+# Operate The UI
+
+Governix provides a focused admin console for governance and audit workflows.
+
+## Login
+
+Route: `/login`
+
+Use the admin credentials created in your database.
+
+## Dashboard
+
+Route: `/`
+
+Use the dashboard to monitor:
+
+- total tenants
+- monthly requests
+- monthly tokens
+- monthly estimated cost
+- tenants in alert
+- tenants over limit
+- failed requests in the last 24 hours
+- policy-blocked requests in the last 24 hours
+
+## Tenants
+
+Route: `/tenants`
+
+Use this page to:
+
+- search tenants
+- filter by lifecycle status
+- create a tenant
+- inspect quota progress and alert state
+- open tenant detail
+
+## Tenant detail
+
+Route: `/tenants/:id`
+
+Current tabs:
+
+- `Overview`
+- `Applications`
+- `Quota`
+- `Policy`
+- `Ledger`
+
+What each tab does:
+
+- `Overview`: read-only effective policy and quota summary
+- `Applications`: create apps, rotate keys, disable, archive
+- `Quota`: set request, token, cost, and threshold values
+- `Policy`: review tenant policy and jump to policy management
+- `Ledger`: inspect recent request records for the tenant
+
+Important behavior:
+
+- application API keys are shown in plaintext only on create or rotate
+- key rotation requires confirmation
+- archive operations require confirmation
+
+## Policies
+
+Route: `/policies`
+
+Use this page to:
+
+- create and edit tenant-scoped policy records
+- enable or disable policies
+- set allowed knowledge base IDs
+- set allowed model IDs
+- require citations
+- set fallback models
+- test policy evaluation with the built-in test form
+
+## Usage and showback
+
+Route: `/usage`
+
+Use this page to:
+
+- inspect usage by tenant, application, or model
+- filter by date range
+- see quota usage and alert state
+- identify high-cost tenants or applications
+- export showback CSV
+
+## Audit ledger
+
+Route: `/ledger`
+
+Use this page to:
+
+- filter by tenant
+- filter by date range
+- filter by status
+- inspect request details
+- queue CSV exports
+- download exports when ready

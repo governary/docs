@@ -1,0 +1,81 @@
+---
+title: Bedrock Demo
+description: Deploy the Terraform-based Bedrock RAG demo included in this repository.
+---
+
+# Bedrock Demo
+
+This repo includes a Terraform-based Bedrock example in the repository path `examples/bedrock-demo`.
+
+The demo provisions:
+
+- an S3 bucket for source documents
+- sample documents uploaded by Terraform
+- a Bedrock Knowledge Base
+- an S3 data source
+- an OpenSearch Serverless vector store through the `aws-ia/bedrock/aws` module
+
+## Prerequisites
+
+- Terraform `>= 1.6`
+- AWS CLI v2
+- AWS credentials with permissions for S3, Bedrock, IAM, CloudWatch Logs, and OpenSearch Serverless
+- Bedrock enabled in the AWS region you choose
+
+## Deploy
+
+From the repository root:
+
+```bash
+cd examples/bedrock-demo
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+## Start ingestion
+
+After `terraform apply`, start the first ingestion job:
+
+```bash
+aws bedrock-agent start-ingestion-job \
+  --region "$(terraform output -raw aws_region)" \
+  --knowledge-base-id "$(terraform output -raw knowledge_base_id)" \
+  --data-source-id "$(terraform output -raw data_source_id)"
+```
+
+## Test the knowledge base
+
+After ingestion completes, test with `retrieve-and-generate`:
+
+```bash
+aws bedrock-agent-runtime retrieve-and-generate \
+  --region "$(terraform output -raw aws_region)" \
+  --input '{"text":"What is Governix?"}' \
+  --retrieve-and-generate-configuration "{
+    \"type\":\"KNOWLEDGE_BASE\",
+    \"knowledgeBaseConfiguration\":{
+      \"knowledgeBaseId\":\"$(terraform output -raw knowledge_base_id)\",
+      \"modelArn\":\"arn:aws:bedrock:$(terraform output -raw aws_region)::foundation-model/REPLACE_WITH_YOUR_GENERATION_MODEL\"
+    }
+  }"
+```
+
+Use a generation model ARN that is enabled in your AWS account and region.
+
+## Wire it into Governix
+
+Once the demo KB is running, create a Governix tenant and application, then configure policy values with:
+
+- the actual Bedrock knowledge base ID
+- the exact model identifier or ARN your application sends
+- the fallback model you want Governix to return on downgrade
+
+## Destroy when finished
+
+```bash
+terraform destroy
+```
+
+For the full repository version of this guide, see `examples/bedrock-demo/README.md`.
