@@ -1,0 +1,203 @@
+---
+title: "Bedrock integration modes in Governix: Mode A vs Mode B"
+description: "Governix supports two Bedrock integration modes. Learn how policy evaluation and event ingestion differ between RetrieveAndGenerate and Retrieve + Converse."
+---
+
+Governix supports two AWS Bedrock integration modes, which correspond to the two ways Bedrock applications combine knowledge base retrieval with model generation. The mode you use determines how many Bedrock API calls you make and how many events you send to Governix. This page explains both modes, when to use each, and what the integration flow looks like in practice.
+
+<Tabs>
+  <Tab title="Mode A · RetrieveAndGenerate">
+    ## Mode A: RetrieveAndGenerate
+
+    Mode A uses the Bedrock `RetrieveAndGenerate` API — a single call that retrieves relevant chunks from a Knowledge Base and generates a response in one step. Bedrock handles both retrieval and generation internally and returns a single combined response.
+
+    Because retrieval and generation happen inside a single API call, you send a single combined event to Governix after the call completes. This event covers both the retrieval detail (knowledge base used, filters applied, chunks retrieved) and the generation detail (model used, token counts, estimated cost).
+
+    ### Integration flow
+
+    <Steps>
+      <Step title="Evaluate policy">
+        Call the Governix policy evaluation API before the Bedrock call. Pass the tenant ID, application ID, the knowledge base you intend to query, and the model you intend to use.
+
+        ```python
+        decision = client.evaluate_policy(
+            tenant_id="tenant_acme",
+            app_id="app_rag_assistant",
+            knowledge_base_id="kb_product_docs",
+            model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+        )
+
+        if decision.status in ("deny", "quota_block"):
+            raise PermissionError(f"Blocked: {decision.status}")
+
+        kb_filter = decision.filter if decision.status == "force_filter" else None
+        model_id = decision.model_id if decision.status == "downgrade_model" else "anthropic.claude-3-sonnet-20240229-v1:0"
+        ```
+      </Step>
+
+      <Step title="Call RetrieveAndGenerate">
+        Make the single Bedrock `RetrieveAndGenerate` call using the (potentially overridden) model and filter from the policy decision.
+
+        ```python
+        import boto3
+
+        bedrock = boto3.client("bedrock-agent-runtime")
+
+        response = bedrock.retrieve_and_generate(
+            input={"text": "How do I reset my password?"},
+            retrieveAndGenerateConfiguration={
+                "type": "KNOWLEDGE_BASE",
+                "knowledgeBaseConfiguration": {
+                    "knowledgeBaseId": "kb_product_docs",
+                    "modelArn": model_id,
+                    "retrievalConfiguration": {
+                        "vectorSearchConfiguration": {"filter": kb_filter}
+                    } if kb_filter else {},
+                },
+            },
+        )
+        ```
+      </Step>
+
+      <Step title="Send a combined event">
+        Send a single combined event to Governix that includes both retrieval and generation detail. Governix records usage, updates quota, and writes to the audit ledger.
+
+        ```python
+        client.ingest_combined_event(
+            tenant_id="tenant_acme",
+            app_id="app_rag_assistant",
+            knowledge_base_id="kb_product_docs",
+            model_id=model_id,
+            filters_applied=kb_filter,
+            chunks_retrieved=response["citations"],
+            input_tokens=response["usage"]["inputTokens"],
+            output_tokens=response["usage"]["outputTokens"],
+            estimated_cost_usd=response["usage"]["estimatedCostUsd"],
+        )
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Mode B · Retrieve + Converse">
+    ## Mode B: Retrieve + Converse
+
+    Mode B uses two separate Bedrock calls: first a `Retrieve` call to query the Knowledge Base, then a `Converse` (or `InvokeModel`) call to pass the retrieved chunks to the model for generation. This pattern gives you direct access to the retrieved chunks between the two steps — useful when you need to inspect, rerank, or filter results before sending them to the model.
+
+    Because retrieval and generation are separate Bedrock calls, you send two separate events to Governix: a retrieval event after the `Retrieve` call and a generation event after the `Converse` call.
+
+    ### Integration flow
+
+    <Steps>
+      <Step title="Evaluate policy">
+        Call the Governix policy evaluation API once before either Bedrock call. The single policy evaluation covers both the retrieval and generation steps.
+
+        ```python
+        decision = client.evaluate_policy(
+            tenant_id="tenant_acme",
+            app_id="app_rag_assistant",
+            knowledge_base_id="kb_product_docs",
+            model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+        )
+
+        if decision.status in ("deny", "quota_block"):
+            raise PermissionError(f"Blocked: {decision.status}")
+
+        kb_filter = decision.filter if decision.status == "force_filter" else None
+        model_id = decision.model_id if decision.status == "downgrade_model" else "anthropic.claude-3-sonnet-20240229-v1:0"
+        ```
+      </Step>
+
+      <Step title="Call Retrieve">
+        Query the Bedrock Knowledge Base using the `Retrieve` API. Apply the filter from the policy decision if one was returned.
+
+        ```python
+        retrieve_response = bedrock.retrieve(
+            knowledgeBaseId="kb_product_docs",
+            retrievalQuery={"text": "How do I reset my password?"},
+            retrievalConfiguration={
+                "vectorSearchConfiguration": {"filter": kb_filter}
+            } if kb_filter else {},
+        )
+
+        retrieved_chunks = retrieve_response["retrievalResults"]
+        ```
+      </Step>
+
+      <Step title="Send the retrieval event">
+        After `Retrieve` returns, immediately send a retrieval event to Governix. Do not wait for the generation step.
+
+        ```python
+        client.ingest_retrieval_event(
+            tenant_id="tenant_acme",
+            app_id="app_rag_assistant",
+            knowledge_base_id="kb_product_docs",
+            filters_applied=kb_filter,
+            chunks_retrieved=retrieved_chunks,
+        )
+        ```
+      </Step>
+
+      <Step title="Call Converse">
+        Build a prompt from the retrieved chunks and call the Bedrock `Converse` API (or `InvokeModel`) to generate the response.
+
+        ```python
+        context = "\n\n".join(chunk["content"]["text"] for chunk in retrieved_chunks)
+        prompt = f"Use the following context to answer the question.\n\nContext:\n{context}\n\nQuestion: How do I reset my password?"
+
+        converse_response = bedrock.converse(
+            modelId=model_id,
+            messages=[{"role": "user", "content": [{"text": prompt}]}],
+        )
+        ```
+      </Step>
+
+      <Step title="Send the generation event">
+        After `Converse` returns, send the generation event to Governix.
+
+        ```python
+        usage = converse_response["usage"]
+
+        client.ingest_generation_event(
+            tenant_id="tenant_acme",
+            app_id="app_rag_assistant",
+            model_id=model_id,
+            input_tokens=usage["inputTokens"],
+            output_tokens=usage["outputTokens"],
+            estimated_cost_usd=usage["estimatedCostUsd"],
+        )
+
+        answer = converse_response["output"]["message"]["content"][0]["text"]
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Comparing the two modes
+
+<CardGroup cols={2}>
+  <Card title="Mode A · RetrieveAndGenerate" icon="bolt">
+    **One Bedrock API call.** Bedrock handles retrieval and generation together. Send one combined event to Governix after the call. Best for straightforward RAG flows where you don't need to inspect or rerank retrieved chunks.
+  </Card>
+  <Card title="Mode B · Retrieve + Converse" icon="code-branch">
+    **Two Bedrock API calls.** You retrieve first, then generate. Send a retrieval event and a generation event separately. Best when you need to inspect, rerank, or transform retrieved chunks before passing them to the model.
+  </Card>
+</CardGroup>
+
+| | Mode A | Mode B |
+|---|---|---|
+| Bedrock API calls | 1 (`RetrieveAndGenerate`) | 2 (`Retrieve` + `Converse`) |
+| Access to retrieved chunks | No — Bedrock handles internally | Yes — chunks available between steps |
+| Governix events | 1 combined event | 1 retrieval event + 1 generation event |
+| Integration complexity | Lower | Higher |
+| Custom reranking or filtering | Not supported | Supported |
+
+<Info>
+  Both modes require the same Governix policy evaluation step before any Bedrock call. The policy decision (allow, deny, force filter, downgrade model, quota block) applies regardless of which mode you use.
+</Info>
+
+## Next steps
+
+- See [SDK integration](/integration/sdk) for full code examples of calling policy evaluation and sending events.
+- See [Middleware integration](/integration/middleware) for a pattern that wraps these steps automatically.

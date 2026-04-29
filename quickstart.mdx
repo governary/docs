@@ -1,0 +1,249 @@
+---
+title: "Governix quickstart: add governance to your Bedrock app"
+description: "Add tenant-aware policy, usage tracking, and audit logging to your AWS Bedrock app in five steps — without replacing your existing Bedrock integration."
+---
+
+Governix is the open-source governance layer for multi-tenant AWS Bedrock applications. This quickstart walks you through the complete integration process — from creating your first tenant to evaluating policy and sending audit events — using the Governix control plane alongside your existing Bedrock setup.
+
+<Note>
+  Governix does not require a proxy gateway. It works as a control plane alongside your existing Bedrock integration. You call policy evaluation before each request and send events after, keeping your current Bedrock code intact.
+</Note>
+
+<Steps>
+  <Step title="Create a tenant">
+    A tenant represents each governed boundary in your system — a department, a customer, or an organizational unit. Every policy, quota, and audit record is scoped to a tenant.
+
+    Create your first tenant in the [admin console](https://app.governary.io/tenants):
+
+    1. Open **Tenants** and click **New tenant**.
+    2. Enter a display name and a unique tenant identifier (for example, `acme-corp` or `dept-finance`).
+    3. Save the tenant. Governix generates a tenant ID that you'll reference at runtime.
+  </Step>
+
+  <Step title="Register an application">
+    An application represents a single Bedrock RAG system or AI feature that operates under a tenant. Applications are used for runtime attribution, API key management, and usage breakdown within a tenant.
+
+    Register your application from the tenant detail page:
+
+    1. Open the tenant and click **Applications** → **New application**.
+    2. Enter the application name and an optional description.
+    3. Copy the generated **API key** — you'll pass this in your SDK calls.
+  </Step>
+
+  <Step title="Configure policy and quota">
+    Policy defines what a tenant's application is permitted to do. Quota sets the limits on how much it can consume.
+
+    In the admin console, open the application and configure:
+
+    - **Allowed knowledge bases** — the Bedrock Knowledge Base IDs this application may query.
+    - **Allowed models** — the Bedrock model IDs (for example, `anthropic.claude-3-sonnet`) this application may invoke.
+    - **Citation requirements** — whether retrieved sources must be cited in responses.
+    - **Fallback rules** — the behavior when a knowledge base is unavailable.
+    - **Quota thresholds** — request count or token limits per day, week, or month.
+
+    <Tip>
+      Start with permissive policy and tighten it as you learn your application's access patterns. Quota blocks are surfaced in the audit ledger so you can review them before enforcing hard limits.
+    </Tip>
+  </Step>
+
+  <Step title="Integrate policy evaluation and event ingestion">
+    Add two Governix SDK calls to your existing Bedrock code: one policy evaluation before the Bedrock request, and one event call after retrieval and generation complete.
+
+    Governix supports two integration modes depending on how your application calls Bedrock.
+
+    **Mode A — RetrieveAndGenerate**
+
+    Use this mode when your application calls the Bedrock `RetrieveAndGenerate` API in a single step.
+
+    <CodeGroup>
+
+    ```javascript Node.js (Mode A)
+    import { GovernixClient } from "@governary/governix-sdk";
+
+    const governix = new GovernixClient({ apiKey: "YOUR_API_KEY" });
+
+    // 1. Evaluate policy before the Bedrock call
+    const policy = await governix.policy.evaluate({
+      tenantId: "YOUR_TENANT_ID",
+      applicationId: "YOUR_APPLICATION_ID",
+      knowledgeBaseId: "YOUR_KB_ID",
+      modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+    });
+
+    if (policy.decision !== "allow") {
+      throw new Error(`Request blocked: ${policy.reason}`);
+    }
+
+    // 2. Call Bedrock RetrieveAndGenerate as normal
+    const bedrockResponse = await bedrockAgentRuntime
+      .retrieveAndGenerate({ /* your params */ })
+      .promise();
+
+    // 3. Send the event to the Governix ledger
+    await governix.events.ingest({
+      tenantId: "YOUR_TENANT_ID",
+      applicationId: "YOUR_APPLICATION_ID",
+      mode: "retrieve-and-generate",
+      inputTokens: bedrockResponse.usage?.inputTokens,
+      outputTokens: bedrockResponse.usage?.outputTokens,
+      modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+      knowledgeBaseId: "YOUR_KB_ID",
+    });
+    ```
+
+    ```python Python (Mode A)
+    from governix import GovernixClient
+
+    governix = GovernixClient(api_key="YOUR_API_KEY")
+
+    # 1. Evaluate policy before the Bedrock call
+    policy = governix.policy.evaluate(
+        tenant_id="YOUR_TENANT_ID",
+        application_id="YOUR_APPLICATION_ID",
+        knowledge_base_id="YOUR_KB_ID",
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    )
+
+    if policy.decision != "allow":
+        raise Exception(f"Request blocked: {policy.reason}")
+
+    # 2. Call Bedrock RetrieveAndGenerate as normal
+    bedrock_response = bedrock_agent_runtime.retrieve_and_generate(
+        # your params
+    )
+
+    # 3. Send the event to the Governix ledger
+    governix.events.ingest(
+        tenant_id="YOUR_TENANT_ID",
+        application_id="YOUR_APPLICATION_ID",
+        mode="retrieve-and-generate",
+        input_tokens=bedrock_response["usage"]["inputTokens"],
+        output_tokens=bedrock_response["usage"]["outputTokens"],
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+        knowledge_base_id="YOUR_KB_ID",
+    )
+    ```
+
+    </CodeGroup>
+
+    **Mode B — Retrieve + Converse**
+
+    Use this mode when your application separates the retrieval step (`Retrieve`) from the generation step (`Converse`). Send a retrieval event after `Retrieve` and a generation event after `Converse`.
+
+    <CodeGroup>
+
+    ```javascript Node.js (Mode B)
+    import { GovernixClient } from "@governary/governix-sdk";
+
+    const governix = new GovernixClient({ apiKey: "YOUR_API_KEY" });
+
+    // 1. Evaluate policy before any Bedrock call
+    const policy = await governix.policy.evaluate({
+      tenantId: "YOUR_TENANT_ID",
+      applicationId: "YOUR_APPLICATION_ID",
+      knowledgeBaseId: "YOUR_KB_ID",
+      modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+    });
+
+    if (policy.decision !== "allow") {
+      throw new Error(`Request blocked: ${policy.reason}`);
+    }
+
+    // 2. Call Bedrock Retrieve
+    const retrieveResponse = await bedrockAgentRuntime
+      .retrieve({ /* your params */ })
+      .promise();
+
+    // 3. Send retrieval event
+    await governix.events.ingest({
+      tenantId: "YOUR_TENANT_ID",
+      applicationId: "YOUR_APPLICATION_ID",
+      mode: "retrieve",
+      knowledgeBaseId: "YOUR_KB_ID",
+    });
+
+    // 4. Call Bedrock Converse with retrieved context
+    const converseResponse = await bedrockRuntime
+      .converse({ /* your params including retrieved results */ })
+      .promise();
+
+    // 5. Send generation event
+    await governix.events.ingest({
+      tenantId: "YOUR_TENANT_ID",
+      applicationId: "YOUR_APPLICATION_ID",
+      mode: "converse",
+      inputTokens: converseResponse.usage?.inputTokens,
+      outputTokens: converseResponse.usage?.outputTokens,
+      modelId: "anthropic.claude-3-sonnet-20240229-v1:0",
+    });
+    ```
+
+    ```python Python (Mode B)
+    from governix import GovernixClient
+
+    governix = GovernixClient(api_key="YOUR_API_KEY")
+
+    # 1. Evaluate policy before any Bedrock call
+    policy = governix.policy.evaluate(
+        tenant_id="YOUR_TENANT_ID",
+        application_id="YOUR_APPLICATION_ID",
+        knowledge_base_id="YOUR_KB_ID",
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    )
+
+    if policy.decision != "allow":
+        raise Exception(f"Request blocked: {policy.reason}")
+
+    # 2. Call Bedrock Retrieve
+    retrieve_response = bedrock_agent_runtime.retrieve(
+        # your params
+    )
+
+    # 3. Send retrieval event
+    governix.events.ingest(
+        tenant_id="YOUR_TENANT_ID",
+        application_id="YOUR_APPLICATION_ID",
+        mode="retrieve",
+        knowledge_base_id="YOUR_KB_ID",
+    )
+
+    # 4. Call Bedrock Converse with retrieved context
+    converse_response = bedrock_runtime.converse(
+        # your params including retrieved results
+    )
+
+    # 5. Send generation event
+    governix.events.ingest(
+        tenant_id="YOUR_TENANT_ID",
+        application_id="YOUR_APPLICATION_ID",
+        mode="converse",
+        input_tokens=converse_response["usage"]["inputTokens"],
+        output_tokens=converse_response["usage"]["outputTokens"],
+        model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    )
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Operate from the control plane">
+    Once events are flowing, the [admin console](https://app.governary.io/tenants) gives you a live view of your governance posture across all tenants.
+
+    From the console you can:
+
+    - Review **per-tenant usage** — requests, token consumption, and estimated cost broken down by application and model.
+    - Monitor **quota pressure** — see how close each tenant is to its configured thresholds before limits are hit.
+    - Inspect the **audit ledger** — view request-level records for every retrieval and generation event, including blocked and filtered requests.
+  </Step>
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="How Governix works" icon="diagram-project" href="/how-it-works">
+    Understand the control plane architecture and request lifecycle in detail.
+  </Card>
+  <Card title="Core concepts" icon="book-open" href="/concepts/tenants">
+    Learn about tenants, applications, policy decisions, quota, and the audit ledger.
+  </Card>
+</CardGroup>

@@ -1,0 +1,63 @@
+---
+title: "What is Governix? Bedrock governance for SaaS teams"
+description: "Add runtime policy, per-tenant usage tracking, and an audit-ready ledger to your AWS Bedrock RAG applications without replacing your existing integration."
+---
+
+Governix is the open-source governance layer for multi-tenant AWS Bedrock applications. If you're already using Bedrock for AI or RAG and now need to control which tenants can access which knowledge bases and models, track usage and cost per tenant, or produce audit evidence at the request level, Governix adds that capability as a control plane alongside your existing code — no proxy gateway required.
+
+## Core capabilities
+
+<CardGroup cols={2}>
+  <Card title="Tenant-aware runtime policy" icon="shield-check" href="/concepts/policy">
+    Define which knowledge bases and models each tenant can use. Apply allow, deny, force filter, downgrade model, or quota block actions before every Bedrock call.
+  </Card>
+  <Card title="Per-tenant usage and quota" icon="chart-bar" href="/concepts/usage-quota">
+    Track request count, token usage, and estimated cost broken down by tenant and application. Set quota thresholds and block requests when limits are reached.
+  </Card>
+  <Card title="Audit-grade request ledger" icon="book" href="/concepts/audit-ledger">
+    Record every retrieval and generation event with request-level detail. Investigate failures, explain decisions, and export evidence for compliance reviews.
+  </Card>
+  <Card title="Tenant management" icon="users" href="/concepts/tenants">
+    Register tenants and applications, assign policy, and manage access from the admin console at app.governary.io.
+  </Card>
+</CardGroup>
+
+## Who Governix is for
+
+<CardGroup cols={2}>
+  <Card title="B2B SaaS teams" icon="building">
+    You have a working Bedrock RAG feature and now need tenant-aware access control, cost visibility, and auditability before it scales.
+  </Card>
+  <Card title="Platform and backend engineers" icon="terminal">
+    You need to enforce policy and collect runtime events cleanly, without rebuilding your application around a gateway.
+  </Card>
+  <Card title="AI product and engineering leaders" icon="gauge">
+    You need to understand usage patterns, quota pressure, and operational risk before your AI feature goes into production at scale.
+  </Card>
+  <Card title="Security and compliance teams" icon="lock">
+    You need request-level evidence of what the system did — not a summary, but a specific, exportable record for each request.
+  </Card>
+</CardGroup>
+
+## What Governix is and isn't
+
+<Note>
+  Governix is a **tenant-aware AI control plane** — a governance and audit layer for Bedrock RAG. It is not a chatbot frontend, a vector database, a general-purpose orchestration suite, or a full billing platform.
+</Note>
+
+Governix handles the operational concerns that Bedrock itself doesn't address: who is allowed to call what, how much have they used, and what exactly happened. Your application code, your Bedrock setup, and your data layer stay as they are.
+
+<Tip>
+  Governix works in SDK and middleware integration modes. You do not need to route all traffic through a proxy to get policy enforcement and event recording.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Connect Governix to your Bedrock application in five steps.
+  </Card>
+  <Card title="How it works" icon="diagram-project" href="/how-it-works">
+    Understand how Governix sits alongside your Bedrock integration as a control plane.
+  </Card>
+</CardGroup>

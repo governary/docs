@@ -1,0 +1,103 @@
+---
+title: "Set and manage per-tenant quota thresholds in Governix"
+description: "Configure request, token, and cost limits per tenant in Governix. Understand warning states and quota blocks when tenants approach or exceed their limits."
+---
+
+Governix tracks usage for every tenant and lets you define thresholds that trigger warnings or block requests when limits are reached. This page explains what quota tracks, how to configure thresholds in the admin console, and how to use the showback views to monitor consumption across tenants, models, and applications.
+
+## What quota tracks
+
+For each tenant, Governix measures:
+
+- **Request count** — the total number of policy-evaluated requests in the current period
+- **Token usage** — the combined input and output token count across all Bedrock model invocations
+- **Estimated cost** — a calculated cost estimate based on token usage and the model pricing associated with each request
+
+All three dimensions are tracked simultaneously. You can set a threshold on any combination of them.
+
+## Warning state vs. quota block state
+
+Governix distinguishes between two states as a tenant's usage grows:
+
+<Note>
+  **Warning state** is triggered when a tenant's usage approaches the configured threshold — for example, at 89% of the request or token limit. No requests are blocked in this state. It is a signal for you to review usage or notify the tenant before the limit is reached.
+
+  **Quota block state** is triggered when usage meets or exceeds the threshold. Governix applies the `quota_block` policy action and rejects new requests until the quota period resets or you manually adjust the threshold.
+</Note>
+
+The warning percentage is configurable per tenant. The default threshold for entering warning state is 89% of the configured limit.
+
+## Quota configuration fields
+
+<ParamField body="quota_threshold.max_requests" type="number">
+  Maximum number of requests allowed per quota period. When this count is reached, Governix blocks further requests with a `quota_block` action.
+</ParamField>
+
+<ParamField body="quota_threshold.max_tokens" type="number">
+  Maximum total token count (input plus output) allowed per quota period. Tracked across all model invocations for the tenant.
+</ParamField>
+
+<ParamField body="quota_threshold.max_estimated_cost_usd" type="number">
+  Maximum estimated spend in USD allowed per quota period. Governix calculates this from token counts and model pricing.
+</ParamField>
+
+<ParamField body="quota_threshold.warning_percent" type="number" default="89">
+  The percentage of the limit at which Governix transitions the tenant into warning state. Accepts a value between 1 and 99.
+</ParamField>
+
+<ParamField body="quota_threshold.period" type="string" default="monthly">
+  The quota reset cadence. Accepted values are `daily`, `weekly`, and `monthly`.
+</ParamField>
+
+## Set a quota threshold for a tenant
+
+<Steps>
+  <Step title="Open the tenant detail page">
+    Go to [app.governary.io/tenants](https://app.governary.io/tenants) and select the tenant you want to configure.
+  </Step>
+  <Step title="Navigate to the Policy tab">
+    Select the **Policy** tab and scroll to the **Quota** section.
+  </Step>
+  <Step title="Enter your threshold values">
+    Set one or more of `max_requests`, `max_tokens`, or `max_estimated_cost_usd`. You only need to configure the dimensions you want to enforce — unset fields are not evaluated.
+  </Step>
+  <Step title="Set the warning percentage">
+    Adjust the warning threshold if the default of 89% is not appropriate for your use case. A lower value gives you more lead time before the quota block triggers.
+  </Step>
+  <Step title="Save and confirm">
+    Save the policy. Governix enforces the new threshold on the next incoming request from that tenant — no restart or deployment is required.
+  </Step>
+</Steps>
+
+## What happens when a tenant hits quota
+
+When a tenant's usage reaches or exceeds any configured threshold, Governix applies the `quota_block` action:
+
+- The request is rejected before reaching Bedrock.
+- The block event is recorded in the audit ledger and attributed to the tenant and application.
+- The tenant's usage dashboard shows the blocked request count.
+
+To resume service for a tenant, either increase the threshold in the admin console or wait for the quota period to reset automatically.
+
+<Warning>
+  Adjusting a threshold upward takes effect immediately and will unblock the tenant's requests right away. Make sure this is intentional before saving the change.
+</Warning>
+
+## Showback views
+
+The admin console provides showback views that break down usage across multiple dimensions. Use these to understand consumption patterns before setting or adjusting quotas.
+
+<CardGroup cols={2}>
+  <Card title="By tenant" icon="users">
+    View total requests, tokens, and estimated cost per tenant for the current and past quota periods.
+  </Card>
+  <Card title="By model" icon="cpu">
+    See which Bedrock models are consuming the most tokens and estimated cost across all tenants.
+  </Card>
+  <Card title="By application" icon="layout-grid">
+    Break down usage by registered application to identify which parts of your product drive the most Bedrock consumption.
+  </Card>
+  <Card title="Blocked events" icon="shield-x">
+    Review all `quota_block` and `deny` events, including the tenant, application, model, and timestamp for each blocked request.
+  </Card>
+</CardGroup>

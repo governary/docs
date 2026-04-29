@@ -1,0 +1,44 @@
+---
+title: "Frequently asked questions about Governix and Bedrock"
+description: "Answers to common questions about how Governix works, who it is for, what it covers in the MVP, and how it relates to AWS Bedrock and the Governary brand."
+---
+
+Governix is the open-source governance layer for AWS Bedrock RAG applications, built by Governary. If you have a question that is not covered here, open an issue on the Governix GitHub repository or reach out to the Governary team.
+
+<AccordionGroup>
+  <Accordion title="What is the relationship between Governary, Governix, and Governair?">
+    Governary is the company and umbrella brand. Governix is the open-source product — the tenant-aware control, metering, and audit layer for AWS Bedrock that you can self-host and integrate today. Governair is the planned managed cloud offering, intended to provide the same capabilities as Governix without the need to operate the infrastructure yourself. Governair is not yet available.
+  </Accordion>
+
+  <Accordion title="Does Governix replace AWS Bedrock or Knowledge Bases?">
+    No. Governix sits alongside your existing Bedrock-based RAG system as a control plane. It does not proxy, replace, or modify Bedrock or Knowledge Bases themselves. You keep your current Bedrock integration and add Governix to enforce policy, track usage, and produce an audit record. Think of Governix as a governance layer that wraps your existing setup rather than a replacement for any part of it.
+  </Accordion>
+
+  <Accordion title="Do I have to route every request through a proxy gateway?">
+    Not in the current MVP. The first version of Governix works through SDK or middleware integration combined with runtime event ingestion. Your application calls Bedrock directly as it does today, and you add Governix calls to evaluate policy before each request and to send usage events after. There is no mandatory proxy gateway that every request must pass through, which means you can adopt Governix incrementally without restructuring your existing architecture.
+  </Accordion>
+
+  <Accordion title="Is policy defined per tenant or per application?">
+    In the MVP, policy is tenant-scoped by default. All applications registered under a tenant share the same policy rules — allowed knowledge bases, allowed models, citation requirements, fallback configuration, and quota thresholds all apply at the tenant level. Applications are used for runtime attribution, API key management, and breaking down usage data, but they do not carry their own independent policy in the current release.
+  </Accordion>
+
+  <Accordion title="What can I track per tenant?">
+    Governix records the following for each tenant: total request count, token usage (input and output), estimated cost, blocked events (both `deny` and `quota_block` actions), and request-level audit records. All of this data is available broken down by tenant, application, and model in the admin console at app.governary.io/tenants.
+  </Accordion>
+
+  <Accordion title="Who is Governix for?">
+    Governix is designed for teams building multi-tenant B2B SaaS products on top of AWS Bedrock. The primary users are platform and backend engineers who need to enforce access control and usage limits across tenants, AI product leaders who need visibility into model and knowledge base consumption, and security or compliance teams who need an audit trail of what each tenant accessed and when. If you are building a product where different customers share a Bedrock-backed AI feature and you need to control, measure, and account for that usage per customer, Governix is built for that problem.
+  </Accordion>
+
+  <Accordion title="What AWS Bedrock features does Governix work with?">
+    In the MVP, Governix focuses on Bedrock Knowledge Bases and model invocations used in RAG (Retrieval-Augmented Generation) workflows. You can define which Knowledge Base IDs and which model IDs or ARNs each tenant is allowed to use, and Governix enforces those rules at runtime. Multi-cloud support and broader Bedrock service coverage are outside the current MVP scope.
+  </Accordion>
+
+  <Accordion title="Is Governix a proxy?">
+    No. Governix is not a reverse proxy that sits in the critical path of every Bedrock request in the MVP. It is a governance layer integrated via SDK calls or middleware. Your application calls Governix to evaluate policy before invoking Bedrock, and sends events after the call completes. This keeps your Bedrock latency unaffected and lets you add governance without re-architecting your request flow.
+  </Accordion>
+
+  <Accordion title="What is not included in the MVP?">
+    The current MVP does not include a billing platform, multi-cloud support, or enterprise identity features such as SSO or SCIM provisioning. The focus of the MVP is tenant management, application registration, runtime policy enforcement, quota tracking, and the audit ledger. Features outside this scope are planned for future releases, including the Governair cloud offering.
+  </Accordion>
+</AccordionGroup>

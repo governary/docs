@@ -1,0 +1,69 @@
+---
+title: "Applications: register your Bedrock workloads in Governix"
+description: "Understand how Governix applications map your Bedrock RAG systems to tenants for runtime attribution, API key management, and per-app usage tracking."
+---
+
+An application in Governix is the registration of a single Bedrock workload — a RAG pipeline, an AI assistant, or any system that calls AWS Bedrock — under a parent tenant. Applications are how Governix knows which tenant to apply policy for, which quota to check, and which audit record to write when a request arrives. Without an application registration, the control plane has no context to enforce governance.
+
+## How applications fit into the hierarchy
+
+Applications always belong to a tenant. The tenant defines the governance boundary; the application is the entry point through which traffic crosses that boundary.
+
+<Steps>
+  <Step title="Create a tenant">
+    Define the governed boundary — a department, customer, or workload group — in the admin console. The tenant holds policy rules, quota thresholds, and aggregate usage data.
+  </Step>
+  <Step title="Register an application">
+    Under that tenant, register each Bedrock RAG system or AI service as a separate application. Governix issues an API key for each application at registration time.
+  </Step>
+  <Step title="Connect your workload">
+    Configure your Bedrock application to route requests through the Governix control plane using the API key. From this point forward, every request is attributed to the application and its parent tenant.
+  </Step>
+</Steps>
+
+## What an application provides
+
+<AccordionGroup>
+  <Accordion title="Runtime attribution">
+    Every request that flows through Governix is tagged with the application ID that sent it. This lets you break down usage, cost, and blocked events by application within a tenant — not just at the tenant level.
+  </Accordion>
+  <Accordion title="API key management">
+    Governix issues a unique API key per application at registration. Rotating or revoking a key affects only that application, not the entire tenant. This limits the blast radius of a leaked credential.
+  </Accordion>
+  <Accordion title="Per-application usage breakdown">
+    The usage and quota views in the admin console let you slice metrics by application. If a tenant has three applications with different usage patterns, you can identify which one is driving consumption toward the quota threshold.
+  </Accordion>
+</AccordionGroup>
+
+## Multiple applications under one tenant
+
+A single tenant can have any number of applications. This is common when:
+
+- One team operates several independent RAG systems (for example, a document Q&A service and a customer support bot) that should share a single quota and policy boundary
+- You want separate API keys for different deployment environments (staging and production) without creating separate tenants
+
+<Note>
+  Usage quota and policy rules apply at the tenant level by default. All applications under a tenant share the same quota pool and are subject to the same policy rules unless you configure application-level overrides.
+</Note>
+
+## How applications connect to the control plane
+
+When a registered application makes a Bedrock call, it routes the request through the Governix control plane. The control plane performs two actions before the call reaches Bedrock:
+
+1. **Policy evaluation** — checks the tenant's policy rules to decide whether to allow, deny, filter, downgrade, or quota-block the request.
+2. **Runtime event recording** — writes a structured event to the audit ledger, capturing the tenant, application, model, outcome, and retrieval metadata.
+
+<Tip>
+  Register separate applications for separate concerns. If your tenant has a customer-facing chatbot and an internal document search tool, keep them as separate applications. You will get cleaner usage breakdowns and can revoke access independently.
+</Tip>
+
+## Related concepts
+
+<CardGroup cols={2}>
+  <Card title="Tenants" icon="building" href="/concepts/tenants">
+    Tenants are the parent of every application. Review the tenant model to understand the governance boundary that applications inherit.
+  </Card>
+  <Card title="Policy" icon="shield-check" href="/concepts/policy">
+    Policy rules are enforced per tenant when an application request arrives. Learn what rules you can configure and how runtime evaluation works.
+  </Card>
+</CardGroup>

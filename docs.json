@@ -1,0 +1,64 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "luma",
+  "name": "Governix",
+  "favicon": "https://media.brand.dev/92adcf0b-8ee9-425c-81e1-fa2f45b2bb5b.png",
+  "colors": {
+    "primary": "#0c142c"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/governary/governix"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "how-it-works"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/tenants",
+              "concepts/applications",
+              "concepts/policy",
+              "concepts/usage-quota",
+              "concepts/audit-ledger"
+            ]
+          },
+          {
+            "group": "Integration",
+            "pages": [
+              "integration/sdk",
+              "integration/middleware",
+              "integration/modes"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/policy-rules",
+              "configuration/quota-thresholds",
+              "configuration/api-keys"
+            ]
+          },
+          {
+            "group": "FAQ",
+            "pages": [
+              "faq"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

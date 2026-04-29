@@ -1,0 +1,151 @@
+---
+title: "Add Governix governance to Bedrock calls via middleware"
+description: "Use the Governix middleware pattern to enforce policy and collect events across your Bedrock calls without restructuring your application logic."
+---
+
+Governix supports a middleware integration pattern as an alternative to calling the SDK directly at each Bedrock call site. Instead of manually calling policy evaluation before and event ingestion after every request, you wrap your Bedrock call handler once and let the middleware handle those steps automatically. This page explains when to use middleware, how it works, and how to set it up.
+
+<Tip>
+  **Choosing between middleware and direct SDK calls:**
+  Use middleware when you have an existing Bedrock integration and want to add governance with minimal code changes — especially if calls happen in many places. Use the direct SDK pattern when you need custom decision handling, fine-grained control over event payloads, or are building governance in from the start.
+</Tip>
+
+## How the middleware pattern works
+
+The Governix middleware wraps a Bedrock call function. When your application invokes the wrapped function, the middleware:
+
+1. Calls the Governix policy evaluation API with the request context.
+2. Applies any overrides from the decision (filters, model downgrades).
+3. Calls your original Bedrock function if the decision allows it.
+4. Sends retrieval and generation events to Governix after the response returns.
+
+Your application code calls the wrapped function the same way it always did. Governance is enforced at the wrapper boundary.
+
+## Setting up the middleware
+
+<Steps>
+  <Step title="Install the SDK">
+    The middleware is included in the Governix SDK package.
+
+    ```bash
+    pip install governix
+    ```
+  </Step>
+
+  <Step title="Import and configure the middleware">
+    Import `GovernixMiddleware` and initialize it with your application API key.
+
+    ```python
+    import os
+    from governix.middleware import GovernixMiddleware
+
+    middleware = GovernixMiddleware(api_key=os.environ["GOVERNIX_API_KEY"])
+    ```
+  </Step>
+
+  <Step title="Wrap your Bedrock call handler">
+    Use the `@middleware.govern` decorator to wrap the function that makes your Bedrock call. Pass the context resolver — a callable that extracts the tenant ID, application ID, knowledge base ID, and model ID from the function's arguments.
+
+    ```python
+    import boto3
+
+    bedrock = boto3.client("bedrock-agent-runtime")
+
+    @middleware.govern(
+        context=lambda kwargs: {
+            "tenant_id": kwargs["tenant_id"],
+            "app_id": "app_rag_assistant",
+            "knowledge_base_id": kwargs["knowledge_base_id"],
+            "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
+        }
+    )
+    def retrieve_and_respond(tenant_id: str, knowledge_base_id: str, query: str) -> dict:
+        return bedrock.retrieve_and_generate(
+            input={"text": query},
+            retrieveAndGenerateConfiguration={
+                "type": "KNOWLEDGE_BASE",
+                "knowledgeBaseConfiguration": {
+                    "knowledgeBaseId": knowledge_base_id,
+                    "modelArn": "anthropic.claude-3-sonnet-20240229-v1:0",
+                },
+            },
+        )
+    ```
+  </Step>
+
+  <Step title="Call the wrapped function as normal">
+    Call `retrieve_and_respond` exactly as you would have before. The middleware intercepts the call, runs policy evaluation, applies any overrides, and sends events — all transparently.
+
+    ```python
+    response = retrieve_and_respond(
+        tenant_id="tenant_acme",
+        knowledge_base_id="kb_product_docs",
+        query="How do I reset my password?",
+    )
+    print(response["output"]["text"])
+    ```
+
+    If the policy decision is `deny` or `quota_block`, the middleware raises a `GovernixPolicyError` before reaching your Bedrock call.
+
+    ```python
+    from governix.exceptions import GovernixPolicyError
+
+    try:
+        response = retrieve_and_respond(
+            tenant_id="tenant_acme",
+            knowledge_base_id="kb_product_docs",
+            query="How do I reset my password?",
+        )
+    except GovernixPolicyError as e:
+        print(f"Request blocked: {e.status}")
+    ```
+  </Step>
+</Steps>
+
+## What happens at each stage
+
+The middleware performs the same steps as the direct SDK integration, in the same order:
+
+```python
+# What the middleware does internally on each call:
+
+# 1. Evaluate policy
+decision = client.evaluate_policy(tenant_id=..., app_id=..., ...)
+
+# 2. Handle deny / quota_block
+if decision.status in ("deny", "quota_block"):
+    raise GovernixPolicyError(status=decision.status)
+
+# 3. Apply overrides
+kb_filter = decision.filter if decision.status == "force_filter" else None
+model_id = decision.model_id if decision.status == "downgrade_model" else original_model_id
+
+# 4. Call the wrapped Bedrock function
+response = wrapped_fn(**kwargs)
+
+# 5. Send events
+client.ingest_retrieval_event(...)
+client.ingest_generation_event(...)
+```
+
+The end result is identical to the direct SDK integration — policy is evaluated before every Bedrock call and events are ingested after.
+
+## Middleware vs. direct SDK calls
+
+<CardGroup cols={2}>
+  <Card title="Middleware" icon="layer-group">
+    Best when you have multiple Bedrock call sites, want minimal diff on existing code, or are adding Governix to a service that's already in production.
+  </Card>
+  <Card title="Direct SDK calls" icon="code">
+    Best when you need custom error handling per call site, want to inspect or modify the decision before proceeding, or are building governance into new code from scratch.
+  </Card>
+</CardGroup>
+
+<Note>
+  Both patterns produce the same governance outcome: policy is enforced before every Bedrock call and every retrieval and generation event is recorded in the audit ledger.
+</Note>
+
+## Next steps
+
+- See [SDK integration](/integration/sdk) for the direct SDK pattern with full decision handling examples.
+- Read [Bedrock integration modes](/integration/modes) to understand how Mode A (`RetrieveAndGenerate`) and Mode B (`Retrieve + Converse`) affect event ingestion.

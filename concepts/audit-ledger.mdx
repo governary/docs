@@ -1,0 +1,105 @@
+---
+title: "Audit ledger: request-level Bedrock records in Governix"
+description: "Governix records every Bedrock request in an audit ledger. Learn what each event captures and how to export records for compliance or incident investigation."
+---
+
+The Governix audit ledger is an append-only record of every request that passes through the control plane. For each request, Governix writes a structured event that captures who made the call, what policy decision was applied, and — for retrieval requests — which chunks and filters were involved. The ledger gives you the evidence you need to investigate failures, explain decisions to stakeholders, and satisfy compliance requirements without building a separate logging pipeline.
+
+## What the ledger records
+
+Every event in the audit ledger captures a consistent set of fields:
+
+<AccordionGroup>
+  <Accordion title="Tenant ID">
+    The stable identifier of the tenant whose application sent the request, such as `tenant_01`. All events are queryable and filterable by tenant ID so you can scope an investigation to a single customer or department.
+  </Accordion>
+  <Accordion title="Application">
+    The registered application that originated the request. Use this to distinguish between multiple applications under the same tenant when tracing a specific failure.
+  </Accordion>
+  <Accordion title="Event type">
+    Whether the event was a `RetrieveAndGenerate` call (Mode A) or a `Retrieve` or `Converse` call (Mode B). In Mode B, the retrieval and generation steps each produce a separate event, linked by a shared trace ID.
+  </Accordion>
+  <Accordion title="Outcome">
+    The result of policy evaluation for this request. Common outcomes include the action taken — for example, `DENIED · quota_block` when a tenant has exhausted its quota, or `ALLOWED` when the request passed all policy checks.
+  </Accordion>
+  <Accordion title="Timestamp">
+    The UTC time at which the event was recorded. Use timestamps to reconstruct the sequence of events during an incident or to verify that a request happened within an expected window.
+  </Accordion>
+  <Accordion title="Retrieval filter and chunk references">
+    For retrieval events, Governix records the metadata filter that was applied to the knowledge base query and references to the chunks returned. This lets you verify exactly what context the model received and confirm that force-filter rules were applied correctly.
+  </Accordion>
+</AccordionGroup>
+
+## Reading the recent events view
+
+The admin console shows a paginated list of recent events in the audit ledger. Each row surfaces the most important fields at a glance:
+
+| Column | Example value | What it tells you |
+|---|---|---|
+| Tenant ID | `tenant_01` | Which tenant's application made the request |
+| Event type | `RetrieveAndGenerate` | Whether this was a unified or split call |
+| Outcome | `DENIED · quota_block` | What the policy engine decided and why |
+| Timestamp | `2026-04-29 14:32:07 UTC` | When the event was recorded |
+
+<Info>
+  The outcome field combines the policy action with the specific reason. A `DENIED · quota_block` outcome tells you the request was denied because the tenant exceeded its quota threshold, not because a policy rule blocked the knowledge base or model.
+</Info>
+
+## Retrieval filter and chunk visibility
+
+For requests that involve a knowledge base retrieval, the ledger goes deeper than the top-level outcome. You can inspect:
+
+- **The filter applied** — the exact metadata filter that Governix injected before the retrieval query reached the knowledge base, whether it was requested by the application or forced by a policy rule.
+- **Chunk references** — identifiers or excerpts for the document chunks that were returned to the model. Use these to verify that the model only saw content the tenant was permitted to access.
+
+<Tip>
+  Chunk reference visibility is especially useful when a user reports an unexpected answer. You can trace the response back to the specific passages the model received and confirm whether a force-filter rule was applied correctly.
+</Tip>
+
+## Exporting the ledger
+
+The audit ledger supports CSV export for use in external compliance and reporting workflows.
+
+<Steps>
+  <Step title="Filter the ledger">
+    Use the tenant ID, date range, event type, or outcome filters in the admin console to scope the export to the records you need. Exporting a filtered set is faster and produces a cleaner file for reviewers.
+  </Step>
+  <Step title="Export to CSV">
+    Click the export button to download the filtered records as a CSV file. Each row corresponds to one audit event and includes all captured fields.
+  </Step>
+  <Step title="Use the export">
+    Import the CSV into your compliance tooling, attach it to an incident report, or share it with an auditor. The CSV format is compatible with standard spreadsheet and data analysis tools.
+  </Step>
+</Steps>
+
+## Use cases
+
+<CardGroup cols={2}>
+  <Card title="Investigate failures" icon="magnifying-glass">
+    When an application reports an unexpected denial or error, find the corresponding event in the ledger to see the exact policy outcome and the parameters of the request that triggered it.
+  </Card>
+  <Card title="Explain decisions" icon="message-square">
+    When a tenant questions why a request was blocked or filtered, use the ledger to show the outcome, the policy rule that applied, and the timestamp — providing a clear, factual explanation.
+  </Card>
+  <Card title="Export compliance evidence" icon="file-export">
+    Regulators and auditors often require evidence that access controls were enforced. Export a date-scoped CSV of events for a specific tenant to produce audit evidence without manual reconstruction.
+  </Card>
+  <Card title="Verify retrieval filters" icon="filter">
+    Confirm that force-filter policy rules are being applied as intended by inspecting the filter field on retrieval events. Use chunk references to verify the model only received permitted content.
+  </Card>
+</CardGroup>
+
+<Note>
+  The audit ledger covers both retrieval and generation events. If your application uses Mode B (separate Retrieve and Converse calls), both steps are recorded independently, giving you a complete picture of what was retrieved and what was generated.
+</Note>
+
+## Related concepts
+
+<CardGroup cols={2}>
+  <Card title="Policy" icon="shield-check" href="/concepts/policy">
+    Every policy decision — allow, deny, force filter, downgrade, or quota block — produces an audit event. Learn how policy evaluation works and what triggers each outcome.
+  </Card>
+  <Card title="Usage and quota" icon="chart-bar" href="/concepts/usage-quota">
+    Quota-block events appear in the audit ledger alongside other decisions. Understand how quota thresholds work and how blocks are triggered.
+  </Card>
+</CardGroup>

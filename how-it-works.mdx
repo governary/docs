@@ -1,0 +1,110 @@
+---
+title: "How Governix works as an AWS Bedrock control plane"
+description: "Understand how Governix evaluates policy, meters usage, and records audit events alongside your existing Bedrock integration without acting as an inline proxy."
+---
+
+Governix is a control plane, not a proxy. It sits alongside your existing AWS Bedrock integration rather than intercepting traffic between your application and Bedrock. Your application calls Governix to evaluate policy before each request and to ingest events after each request completes. Bedrock continues to handle retrieval and generation directly. This page explains the request lifecycle, the two integration modes, and what the control plane console surfaces.
+
+## The request lifecycle
+
+Every governed Bedrock request follows the same three-phase lifecycle:
+
+**1. Policy evaluation**
+
+Before your application sends a request to Bedrock, it calls the Governix policy API. Governix evaluates the request against the tenant's configured rules — checking allowed knowledge bases, allowed models, citation requirements, and current quota consumption. The evaluation returns one of four decisions:
+
+- **Allow** — the request passes all policy rules and quota checks.
+- **Deny** — the request violates a policy rule and must not proceed.
+- **Filter** — the request is allowed but with constraints applied (for example, a restricted knowledge base scope).
+- **Quota block** — the tenant has reached a configured usage threshold and the request is blocked until the quota resets.
+
+Your application code is responsible for checking the decision and stopping the Bedrock call if the result is not `allow`.
+
+**2. Bedrock call**
+
+Your application calls AWS Bedrock using the standard AWS SDK — `RetrieveAndGenerate` in Mode A, or `Retrieve` followed by `Converse` in Mode B. Governix is not in this path. There is no added network hop and no modification of Bedrock requests or responses.
+
+**3. Event ingestion**
+
+After the Bedrock call completes, your application sends a runtime event to the Governix ledger. The event includes the tenant ID, application ID, model ID, token counts, and knowledge base reference. Governix records the event in the audit ledger and updates the tenant's quota and usage counters.
+
+```
+Your application
+  │
+  ├─► Governix policy.evaluate()   ← allow / deny / filter / quota block
+  │
+  ├─► AWS Bedrock (Retrieve, Converse, or RetrieveAndGenerate)
+  │
+  └─► Governix events.ingest()     ← audit record + quota update
+```
+
+## Two integration modes
+
+Governix supports both patterns that AWS Bedrock offers for RAG.
+
+**Mode A — RetrieveAndGenerate**
+
+Your application calls the Bedrock `RetrieveAndGenerate` API, which handles retrieval and generation in a single request. You send one policy evaluation before the call and one event after it completes.
+
+Use Mode A when your application uses the managed RAG pipeline and does not need to inspect or rerank retrieved results before generation.
+
+**Mode B — Retrieve + Converse**
+
+Your application calls `Retrieve` to fetch source documents, then calls `Converse` (or `InvokeModel`) with the retrieved context to generate a response. You send one policy evaluation before both calls, a retrieval event after `Retrieve`, and a generation event after `Converse`.
+
+Use Mode B when your application needs to inspect, filter, or augment retrieved results before sending them to the model — for example, to apply additional citation logic or re-ranking.
+
+<Info>
+  Policy is always evaluated at the start of the request before any Bedrock call. A quota block in Mode B stops the request before both the retrieval and generation steps.
+</Info>
+
+## What Governix tracks
+
+Governix records the following data for every tenant and application:
+
+- **Request count** — total requests, broken down by allow, deny, filter, and quota block outcomes.
+- **Token usage** — input and output tokens per request, aggregated by tenant, application, and model.
+- **Estimated cost** — cost approximation based on token consumption and the model's pricing.
+- **Blocked events** — denied and quota-blocked requests with the policy rule that triggered the decision.
+- **Request-level audit records** — a full audit entry for every retrieval and generation event, including timestamps, model IDs, knowledge base references, and policy outcomes.
+
+## Core capabilities
+
+<CardGroup cols={2}>
+  <Card title="Runtime policy" icon="shield-check">
+    Tenant-scoped rules control which knowledge bases and models each application may use. Policy decisions — allow, deny, filter, or quota block — are evaluated before each Bedrock call and recorded in the audit ledger.
+  </Card>
+  <Card title="Usage and quota" icon="chart-bar">
+    Governix meters every request and tracks token consumption, request counts, and estimated cost per tenant and application. Quota thresholds trigger blocks before costs or usage exceed defined limits.
+  </Card>
+  <Card title="Audit ledger" icon="book">
+    Every retrieval and generation event produces a request-level audit record. The ledger supports compliance review, incident investigation, and usage showback across tenants and applications.
+  </Card>
+  <Card title="Admin console" icon="sliders">
+    The [Governix console](https://app.governary.io/tenants) surfaces tenant overview, per-application usage breakdown, quota pressure indicators, and the full audit ledger — all without writing queries or building dashboards.
+  </Card>
+</CardGroup>
+
+## What Governix is not
+
+Governix is a control plane, not an inline gateway. It does not:
+
+- Intercept or proxy network traffic between your application and AWS Bedrock.
+- Modify Bedrock requests or responses in transit.
+- Replace AWS IAM permissions or Bedrock resource policies.
+- Provide billing, invoicing, or multi-cloud governance in the current release.
+
+<Note>
+  Governix is designed so you can add governance incrementally. Start with policy evaluation for one application, confirm the integration works, then expand to additional tenants and applications at your own pace.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Follow the five-step integration guide to connect your first Bedrock application to Governix.
+  </Card>
+  <Card title="Core concepts" icon="book-open" href="/concepts/tenants">
+    Learn about tenants, applications, policy rules, quota thresholds, and the audit ledger in depth.
+  </Card>
+</CardGroup>

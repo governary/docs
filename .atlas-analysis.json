@@ -1,0 +1,78 @@
+{
+  "projectType": "saas",
+  "projectName": "Governix",
+  "projectDescription": "Open-source tenant-aware control, metering, and audit layer for AWS Bedrock AI and RAG applications.",
+  "theme": "luma",
+  "primaryColor": "#0c142c",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "how-it-works"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/tenants",
+              "concepts/applications",
+              "concepts/policy",
+              "concepts/usage-quota",
+              "concepts/audit-ledger"
+            ]
+          },
+          {
+            "group": "Integration",
+            "pages": [
+              "integration/sdk",
+              "integration/middleware",
+              "integration/modes"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/policy-rules",
+              "configuration/quota-thresholds",
+              "configuration/api-keys"
+            ]
+          },
+          {
+            "group": "FAQ",
+            "pages": [
+              "faq"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Tenant-aware runtime policy enforcement (allow, deny, filter, quota block)",
+    "Per-tenant usage, token tracking, and estimated cost",
+    "Quota thresholds with warning states and blocking",
+    "Audit-grade request-level ledger for retrieval and generation events",
+    "No proxy gateway required — SDK and middleware integration",
+    "Admin control plane console for tenant overview and audit inspection",
+    "Support for both RetrieveAndGenerate and Retrieve + Converse Bedrock modes",
+    "CSV export for audit workflows"
+  ],
+  "publicApiSurface": [
+    "Runtime policy evaluation API (pre-request)",
+    "Runtime event ingestion API (post-request)",
+    "Tenant management API",
+    "Application registration API",
+    "Policy and quota configuration API",
+    "Audit ledger query and export API",
+    "SDK integration (Mode A: RetrieveAndGenerate, Mode B: Retrieve + Converse)",
+    "Middleware integration layer"
+  ]
+}
